@@ -1,5 +1,5 @@
 from tensorflow.keras.layers import ZeroPadding2D, Add, Concatenate
-from layers import compose, darknet_CBM
+from yolo_component.z_layers import compose, darknet_CBM
 
 
 def csp_resblock_body(x, num_filters, num_blocks, all_narrow=True):

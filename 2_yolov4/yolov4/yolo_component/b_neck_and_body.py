@@ -1,9 +1,9 @@
 from tensorflow.keras.layers import UpSampling2D, Concatenate, ZeroPadding2D
 from tensorflow.keras.models import Model
 
-from darknet import csp_darknet53_body
-from layers import make_three_darknet_CBL, make_five_darknet_CBL
-from layers import spp, compose, darknet_CBL, darknet_Conv2D
+from yolo_component.a_darknet import csp_darknet53_body
+from yolo_component.z_layers import make_three_darknet_CBL, make_five_darknet_CBL
+from yolo_component.z_layers import spp, compose, darknet_CBL, darknet_Conv2D
 
 
 def yolov4_neck(feature_maps, feature_channel_nums, num_anchors, num_classes):
@@ -27,7 +27,7 @@ def yolov4_neck(feature_maps, feature_channel_nums, num_anchors, num_classes):
     x2 = make_five_darknet_CBL(x2, f2_channel_num//2)
     x2_upsample = compose(
         darknet_CBL(f3_channel_num//2, (1, 1)),
-        UpSampling2D(2))(x1)
+        UpSampling2D(2))(x2)
 
     x3 = darknet_CBL(f3_channel_num//2, (1, 1))(f3)
     x3 = Concatenate()([x3, x2_upsample])
@@ -59,7 +59,7 @@ def yolov4_neck(feature_maps, feature_channel_nums, num_anchors, num_classes):
         ZeroPadding2D(((1, 0), (1, 0))),
         darknet_CBL(f1_channel_num//2, (3, 3), strides=(2, 2)))(x2)
     x1 = Concatenate()([x2_downsample, x1])
-    x1 = make_yolo_head(x1, f1_channel_num//2)
+    x1 = make_five_darknet_CBL(x1, f1_channel_num//2)
 
     # output (19x19 for 608 input)
     y1 = compose(

@@ -1,7 +1,7 @@
 from functools import wraps, reduce
 
 import tensorflow.keras.backend as K
-from tensorflow.keras.layers import Conv2D, Concatenate, MaxPooling2D
+from tensorflow.keras.layers import Conv2D, Concatenate, MaxPooling2D, Activation
 from tensorflow.keras.layers import LeakyReLU, BatchNormalization
 from tensorflow.keras.regularizers import l2
 
@@ -40,8 +40,7 @@ def darknet_CBM(*args, **kwargs):
     return compose(
         darknet_Conv2D(*args, **no_bias_kwargs),
         BatchNormalization(),
-        mish()
-    )
+        Activation(mish))
 
 
 def darknet_CBL(*args, **kwargs):
