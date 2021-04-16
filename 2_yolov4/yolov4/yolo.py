@@ -3,21 +3,21 @@ import time
 
 import numpy as np
 from PIL import Image
-from tensorflow.keras.layers import Input
+from tensorflow.keras import backend as K
 
 from model import get_yolo4_inference_model
 from utils.data_utils import preprocess_image
 from utils.utils import get_colors, get_classes, get_anchors, draw_boxes
 
 default_config = {
-        "weights_path": '/home/xia/Documents/1_code/16_target_detection/target_detection/2_yolov4/yolov4/weights/yolov4.h5',
-        "anchors_path": os.path.join('configs', 'yolo_anchors.txt'),
-        "classes_path": os.path.join('configs', 'coco_classes.txt'),
-        "score" : 0.1,
-        "iou" : 0.4,
-        "model_image_size" : (416, 416),
-        "elim_grid_sense": True,
-    }
+    "weights_path": '/home/xia/Documents/1_code/16_target_detection/target_detection/2_yolov4/yolov4/weights/yolov4.h5',
+    "anchors_path": os.path.join('configs', 'yolo_anchors.txt'),
+    "classes_path": os.path.join('configs', 'coco_classes.txt'),
+    "score": 0.1,
+    "iou": 0.4,
+    "model_image_size": (416, 416),
+    "elim_grid_sense": False,
+}
 
 
 class YOLO(object):
@@ -39,6 +39,7 @@ class YOLO(object):
         self.class_names = get_classes(self.classes_path)
         self.anchors = get_anchors(self.anchors_path)
         self.colors = get_colors(self.class_names)
+        K.set_learning_phase(0)
         self.inference_model = self._generate_model()
 
     def _generate_model(self):
@@ -51,7 +52,8 @@ class YOLO(object):
 
         # 载入模型
         inference_model = get_yolo4_inference_model(self.anchors, num_classes, weights_path=weights_path,
-                                                    input_shape=self.model_image_size + (3,), score_threshold=self.score,
+                                                    input_shape=self.model_image_size + (3,),
+                                                    score_threshold=self.score,
                                                     iou_threshold=self.iou, elim_grid_sense=self.elim_grid_sense)
 
         inference_model.summary()
@@ -92,7 +94,3 @@ class YOLO(object):
 
         out_classnames = [self.class_names[c] for c in out_classes]
         return Image.fromarray(image_array), out_boxes, out_classnames, out_scores
-
-
-
-

@@ -8,9 +8,9 @@ def batch_yolo4_postprocess(args,
                             anchors,
                             num_classes,
                             max_boxes=100,
-                            score_threshold=0.1,
-                            iou_threshold=0.4,
-                            elim_grid_sense=True):
+                            score_threshold=0.6,
+                            iou_threshold=0.7,
+                            elim_grid_sense=False):
     """Postprocess for YOLOv4 model on gived input and return filtered boxes. """
 
     num_layers = len(anchors) // 3  # 特征图数量
@@ -52,17 +52,19 @@ def batch_yolo4_postprocess(args,
         scores_ = []
         classes_ = []
         for c in range(num_classes):
-            # TODO: use keras backend instead of tf.
             class_boxes = tf.boolean_mask(boxes[b], mask[b, :, c])
             class_box_scores = tf.boolean_mask(box_scores[b, :, c], mask[b, :, c])
+            # 非极大抑制
             nms_index = tf.image.non_max_suppression(
                 class_boxes,
                 class_box_scores,
                 max_boxes_tensor,
                 iou_threshold=iou_threshold)
+            # 获取非极大抑制后的结果
             class_boxes = K.gather(class_boxes, nms_index)
             class_box_scores = K.gather(class_box_scores, nms_index)
             classes = K.ones_like(class_box_scores, 'int32') * c
+
             boxes_.append(class_boxes)
             scores_.append(class_box_scores)
             classes_.append(classes)

@@ -64,6 +64,8 @@ def yolo4_correct_boxes(box_xy, box_wh, input_shape, image_shape):
     offset = (input_shape - new_shape) / 2. / input_shape  # （0，0.125）
     scale = input_shape / new_shape  # (1, 1.333)
 
+    offset = offset[..., ::-1]
+    scale = scale[..., ::-1]
     # 举例，在现在还未进行任何尺度变换，假设有一个坐标为（0.4，0.3），wh为（0.2，0.2）的框。
     # 上面这个数值的意义为：这个坐标是在input（416，416） 的相对位置和相对宽高，实际上，input
     # 的（:,0:0.125）的区域都没有意义，（:,0.875:1）也是。

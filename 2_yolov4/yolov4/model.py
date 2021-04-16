@@ -2,8 +2,13 @@ from tensorflow.keras.layers import Input, Lambda
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
 
+from yolo_component.c_postprocess import batch_yolo4_postprocess
+from yolo_component.b_neck_and_body import yolo4_body
+from yolo_component.z_loss import yolo4_loss
+from utils.model_utils import add_metrics
 
-def get_yolo4_model(model_type, num_anchors, num_classes, input_tensor=None, input_shape=None):
+
+def get_yolo4_model(num_anchors, num_classes, weights_path=None, input_tensor=None, input_shape=None):
     # prepare input tensor
     if input_shape:
         input_tensor = Input(shape=input_shape, name='image_input')
@@ -13,7 +18,6 @@ def get_yolo4_model(model_type, num_anchors, num_classes, input_tensor=None, inp
 
     model_function = yolo4_body
     backbone_len = 250
-    weights_path = 'weights/cspdarknet53.h5'
 
     if weights_path:
         model_body = model_function(input_tensor, num_anchors // 3, num_classes, weights_path=weights_path)
@@ -23,24 +27,23 @@ def get_yolo4_model(model_type, num_anchors, num_classes, input_tensor=None, inp
     return model_body, backbone_len
 
 
-def get_yolo4_inference_model(model_type, anchors, num_classes, weights_path=None,
-                              input_shape=None, confidence=0.1, iou_threshold=0.4, elim_grid_sense=False):
+def get_yolo4_inference_model(anchors, num_classes, weights_path=None,
+                              input_shape=None, score_threshold=0.1, iou_threshold=0.4, elim_grid_sense=False):
     """create the inference model, for YOLOv4"""
     num_anchors = len(anchors)
-    num_feature_layers = num_anchors // 3
 
     image_shape = Input(shape=(2,), dtype='int64', name='image_shape')
-    model_body, _ = get_yolo4_model(model_type, num_feature_layers, num_anchors, num_classes, input_shape=input_shape)
+    model_body, _ = get_yolo4_model(num_anchors, num_classes, weights_path, input_shape=input_shape)
 
     if weights_path:
-        model_body.load_weights(weights_path, by_name=False)
-        print('Load weight {}'.format(weights_path))
+        model_body.load_weights(weights_path, by_name=False)#, skip_mismatch=True)
+        print('Load weights {}.'.format(weights_path))
 
     boxes, scores, classes = Lambda(batch_yolo4_postprocess, name='yolo4_postprocess',
                                     arguments={
                                         'anchors': anchors,
                                         'num_classes': num_classes,
-                                        'confidence': confidence,
+                                        'score_threshold': score_threshold,
                                         'iou_threshold': iou_threshold,
                                         'elim_grid_sense': elim_grid_sense
                                     })([*model_body.output, image_shape])
@@ -49,7 +52,7 @@ def get_yolo4_inference_model(model_type, anchors, num_classes, weights_path=Non
     return model
 
 
-def get_yolo4_train_model(model_type, anchors, num_classes, weights_path=None, freeze_level=1,
+def get_yolo4_train_model(anchors, num_classes, weights_path=None, freeze_level=1,
                           optimizer=Adam(lr=1e-3, decay=0), label_smoothing=0, elim_grid_sense=False):
     """Create the training model, for YOLOv4"""
     num_anchors = len(anchors)
@@ -64,7 +67,7 @@ def get_yolo4_train_model(model_type, anchors, num_classes, weights_path=None, f
     y_true = [Input(shape=(None, None, 3, num_classes + 5), name='y_true_{}'.format(l)) for l in
               range(num_feature_layers)]
 
-    model_body, backbone_len = get_yolo4_model(model_type, num_feature_layers, num_anchors, num_classes)
+    model_body, backbone_len = get_yolo4_model(num_feature_layers, num_anchors, num_classes)
     print('Create model')
 
     if weights_path:
@@ -82,8 +85,7 @@ def get_yolo4_train_model(model_type, anchors, num_classes, weights_path=None, f
             model_body.layers[i].trainable = True
         print('Unfree all of the layers. ')
 
-    # TODO: yolo4_loss
-    model_loss, location_loss, confidence_loss, class_loss = Lambda(yolo3_loss, name='yolo_loss',
+    model_loss, location_loss, confidence_loss, class_loss = Lambda(yolo4_loss, name='yolo_loss',
                                                                     arguments={
                                                                         'anchors': anchors,
                                                                         'num_classes': num_classes,

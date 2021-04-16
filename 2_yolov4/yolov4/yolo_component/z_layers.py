@@ -1,5 +1,6 @@
 from functools import wraps, reduce
 
+import tensorflow as tf
 import tensorflow.keras.backend as K
 from tensorflow.keras.layers import Conv2D, Concatenate, MaxPooling2D, Activation
 from tensorflow.keras.layers import LeakyReLU, BatchNormalization
@@ -19,6 +20,16 @@ def compose(*funcs):
         raise ValueError('Composition of empty sequence not supported.')
 
 
+def custom_batchnormalization(*args, **kwargs):
+    if tf.__version__ >= '2.2':
+        from tensorflow.keras.layers.experimental import SyncBatchNormalization
+        bn = SyncBatchNormalization
+    else:
+        bn = BatchNormalization
+
+    return bn(*args, **kwargs)
+
+
 def mish(x):
     return x * K.tanh(K.softplus(x))
 
@@ -28,7 +39,7 @@ def darknet_Conv2D(*args, **kwargs):
     """Wrapper to set Darknet parameters for Convolution2D."""
     darknet_conv_kwargs = {'kernel_regularizer': l2(5e-4)}
     darknet_conv_kwargs['bias_regularizer'] = l2(5e-4)
-    darknet_conv_kwargs['padding'] = 'valid' if kwargs.get('strides')==(2,2) else 'same'
+    darknet_conv_kwargs['padding'] = 'valid' if kwargs.get('strides') == (2, 2) else 'same'
     darknet_conv_kwargs.update(kwargs)
     return Conv2D(*args, **darknet_conv_kwargs)
 
@@ -39,7 +50,7 @@ def darknet_CBM(*args, **kwargs):
     no_bias_kwargs.update(kwargs)
     return compose(
         darknet_Conv2D(*args, **no_bias_kwargs),
-        BatchNormalization(),
+        custom_batchnormalization(),
         Activation(mish))
 
 
@@ -50,7 +61,7 @@ def darknet_CBL(*args, **kwargs):
     no_bias_kwargs.update(kwargs)
     return compose(
         darknet_Conv2D(*args, **no_bias_kwargs),
-        BatchNormalization(),
+        custom_batchnormalization(),
         LeakyReLU(alpha=0.1)
     )
 
@@ -67,18 +78,19 @@ def spp(x):
 def make_five_darknet_CBL(x, num_filters):
     # 五次卷积
     x = compose(
-            darknet_CBL(num_filters, (1, 1)),
-            darknet_CBL(num_filters*2, (3, 3)),
-            darknet_CBL(num_filters, (1, 1)),
-            darknet_CBL(num_filters*2, (3, 3)),
-            darknet_CBL(num_filters, (1, 1)))(x)
+        darknet_CBL(num_filters, (1, 1)),
+        darknet_CBL(num_filters * 2, (3, 3)),
+        darknet_CBL(num_filters, (1, 1)),
+        darknet_CBL(num_filters * 2, (3, 3)),
+        darknet_CBL(num_filters, (1, 1))
+    )(x)
     return x
 
 
 def make_three_darknet_CBL(x, num_filters):
     # 三次卷积
     x = compose(
-            darknet_CBL(num_filters, (1, 1)),
-            darknet_CBL(num_filters*2, (3, 3)),
-            darknet_CBL(num_filters, (1, 1)))(x)
+        darknet_CBL(num_filters, (1, 1)),
+        darknet_CBL(num_filters * 2, (3, 3)),
+        darknet_CBL(num_filters, (1, 1)))(x)
     return x
