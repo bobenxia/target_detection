@@ -54,4 +54,5 @@ def predict_vedio(yolo, video_path='0'):
 
 if __name__ == '__main__':
     yolo = YOLO()
-    predict_vedio(yolo)
+    # predict_vedio(yolo)
+    predict_image(yolo)
