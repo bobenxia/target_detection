@@ -108,3 +108,16 @@ def batched_yolo4_boxes_and_scores(feats, anchors, num_classes, input_shape, ima
     box_scores = K.reshape(box_scores, [-1, total_anchor_num, num_classes])
 
     return boxes, box_scores
+
+
+def yolo4_boxes_and_scores(feats, anchors, num_classes, input_shape, image_shape, scale_x_y):
+    '''Process Conv layer output'''
+    box_xy, box_wh, box_confidence, box_class_probs = yolo4_decode(feats,
+        anchors, num_classes, input_shape, scale_x_y=scale_x_y)
+
+    boxes = yolo4_correct_boxes(box_xy, box_wh, input_shape, image_shape)
+    boxes = K.reshape(boxes, [-1, 4])
+
+    box_scores = box_confidence * box_class_probs
+    box_scores = K.reshape(box_scores, [-1, num_classes])
+    return boxes, box_scores

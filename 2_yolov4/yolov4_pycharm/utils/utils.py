@@ -38,6 +38,19 @@ def get_colors(class_names):
     return colors
 
 
+def get_dataset(annotation_file, shuffle=True):
+    with open(annotation_file) as f:
+        lines = f.readlines()
+        lines = [line.strip() for line in lines]
+
+    if shuffle:
+        np.random.seed(int(time.time()))
+        np.random.shuffle(lines)
+        #np.random.seed(None)
+
+    return lines
+
+
 def draw_label(image, text, color, coords):
     font = cv2.FONT_HERSHEY_PLAIN
     font_scale = 1.

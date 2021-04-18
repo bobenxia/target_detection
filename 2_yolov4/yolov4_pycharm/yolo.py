@@ -11,10 +11,10 @@ from utils.utils import get_colors, get_classes, get_anchors, draw_boxes
 
 # '/home/xia/Documents/1_code/16_target_detection/target_detection/2_yolov4/yolov4/weights/yolov4.h5',
 default_config = {
-    "weights_path": r'C:\Users\xia\Documents\codes\20210403_目标检测\target_detection\2_yolov4\yolov4\weights\yolov4.h5',
-    "anchors_path": os.path.join('configs', 'yolo_anchors.txt'),
-    "classes_path": os.path.join('configs', 'coco_classes.txt'),
-    "score": 0.1,
+    "weights_path": r'C:\Users\xia\Documents\codes\20210403_目标检测\target_detection\2_yolov4\yolov4_pycharm\weights\yolov4.h5',
+    "anchors_path": r'C:\Users\xia\Documents\codes\20210403_目标检测\target_detection\2_yolov4\yolov4_pycharm\configs\yolo_anchors.txt',
+    "classes_path": r'C:\Users\xia\Documents\codes\20210403_目标检测\target_detection\2_yolov4\yolov4_pycharm\configs\coco_classes.txt',
+    "score": 0.5,
     "iou": 0.4,
     "model_image_size": (416, 416),
     "elim_grid_sense": False,

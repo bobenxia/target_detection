@@ -28,7 +28,7 @@ def get_yolo4_model(num_anchors, num_classes, weights_path=None, input_tensor=No
 
 
 def get_yolo4_inference_model(anchors, num_classes, weights_path=None,
-                              input_shape=None, score_threshold=0.1, iou_threshold=0.4, elim_grid_sense=False):
+                              input_shape=None, score_threshold=0.1, iou_threshold=0.5, elim_grid_sense=False):
     """create the inference model, for YOLOv4"""
     num_anchors = len(anchors)
 
