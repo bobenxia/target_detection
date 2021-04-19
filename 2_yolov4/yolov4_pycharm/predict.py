@@ -28,7 +28,7 @@ def predict_vedio(yolo, video_path='0'):
         raise IOError("Couldn't open webcam or video")
     fps = 0.0
     while (True):
-        t1 = time.time()
+
         # 读取某一帧
         ref, frame = capture.read()
         # 格式转变，BGRtoRGB
@@ -37,10 +37,11 @@ def predict_vedio(yolo, video_path='0'):
         frame = Image.fromarray(np.uint8(frame))
 
         # 进行检测
+        t1 = time.time()
         image, _, _, _ = yolo.detect_image(frame)
-        frame = np.array(image)
         fps = (fps + (1. / (time.time() - t1))) / 2
         print("fps= %.2f" % (fps))
+        frame = np.array(image)
 
         # RGBtoBGR满足opencv显示格式
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
@@ -55,4 +56,4 @@ def predict_vedio(yolo, video_path='0'):
 if __name__ == '__main__':
     yolo = YOLO()
     # predict_vedio(yolo)
-    predict_image(yolo)
+    predict_vedio(yolo)
