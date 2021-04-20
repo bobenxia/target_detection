@@ -27,16 +27,6 @@ def csp_resblock_body(x, num_filters, num_blocks, all_narrow=True):
     return x
 
 
-# def csp_darknet53_body(x):
-#     """CSPDarknet53 body having 52 Convolution2D layers"""
-#     x = darknet_CBM(32, (3, 3))(x)
-#     x = csp_resblock_body(x, 64, 1, False)
-#     x = csp_resblock_body(x, 128, 2)
-#     x = csp_resblock_body(x, 256, 8)
-#     x = csp_resblock_body(x, 512, 8)
-#     x = csp_resblock_body(x, 1024, 4)
-#     return x
-
 def csp_darknet53_body(x):
     """CSPDarknet53 body having 52 Convolution2D layers"""
     x = darknet_CBM(32, (3, 3))(x)
