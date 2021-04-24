@@ -93,18 +93,21 @@ def batch_yolo4_postprocess(args,
     return batch_boxes, batch_scores, batch_classes
 
 
-def yolo4_postprocess(args,
+def yolo4_postprocess(yolo_outputs,
+                      image_shape,
                       anchors,
                       num_classes,
                       max_boxes=100,
-                      confidence=0.1,
+                      score_threshold=0.1,
                       iou_threshold=0.4,
                       elim_grid_sense=False):
     """Postprocess for YOLOv4 model on given input and return filtered boxes."""
 
     num_layers = len(anchors) // 3  # default setting
-    yolo_outputs = args[:num_layers]
-    image_shape = args[num_layers]
+    yolo_outputs = yolo_outputs
+    image_shape = image_shape
+    import numpy as np
+    print(np.array(yolo_outputs[0].reshape((-1,7))).shape)
 
     if num_layers == 3:
         anchor_mask = [[6, 7, 8], [3, 4, 5], [0, 1, 2]]
@@ -133,7 +136,7 @@ def yolo4_postprocess(args,
     box_scores = K.concatenate(box_scores, axis=0)
 
     # 判断得分是否大于 score_threshold
-    mask = box_scores >= confidence
+    mask = box_scores >= score_threshold
     max_boxes_tensor = K.constant(max_boxes, dtype='int32')
 
     boxes_ = []

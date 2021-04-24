@@ -64,7 +64,7 @@ if __name__ == '__main__':
     detections_queue = Queue(maxsize=1)
     fps_queue = Queue(maxsize=1)
 
-    yolo = TrtYOLO()
+    yolo = TrtYOLO(model_name='yolov4-416', cuda_context=None)
     capture = cv2.VideoCapture(0)
     if not capture.isOpened():
         raise IOError("Couldn't open webcam or video")

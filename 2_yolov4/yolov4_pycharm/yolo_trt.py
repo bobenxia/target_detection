@@ -13,12 +13,21 @@ from tensorflow.keras.layers import Input, Lambda
 import pycuda.driver as cuda
 import tensorrt as trt
 
-# '/home/xia/Documents/1_code/16_target_detection/target_detection/2_yolov4/yolov4/weights/yolov4.h5',
+# '/home/xia/Documents/1_code/16_target_detection/target_detection/2_yolov4/yolov4_pycharm/
+# r'C:\Users\xia\Documents\codes\20210403_目标检测\target_detection\2_yolov4\yolov4_pycharm\
 from yolo_component.c_postprocess import batch_yolo4_postprocess, yolo4_postprocess
+import ctypes
+
+try:
+    ctypes.cdll.LoadLibrary('./plugins/libyolo_layer.so')
+except OSError as e:
+    raise SystemExit('ERROR: failed to load ./plugins/libyolo_layer.so.  '
+                     'Did you forget to do a "make" in the "./plugins/" '
+                     'subdirectory?') from e
 
 default_config = {
-    "anchors_path": r'C:\Users\xia\Documents\codes\20210403_目标检测\target_detection\2_yolov4\yolov4_pycharm\configs\yolo_anchors.txt',
-    "classes_path": r'C:\Users\xia\Documents\codes\20210403_目标检测\target_detection\2_yolov4\yolov4_pycharm\configs\coco_classes.txt',
+    "anchors_path": '/home/xia/Documents/1_code/16_target_detection/target_detection/2_yolov4/yolov4_pycharm/configs/yolo_anchors.txt',
+    "classes_path": '/home/xia/Documents/1_code/16_target_detection/target_detection/2_yolov4/yolov4_pycharm/configs/coco_classes.txt',
     "score": 0.5,
     "iou": 0.4,
     "model_image_size": (416, 416),
@@ -28,6 +37,7 @@ default_config = {
 
 class HostDeviceMem(object):
     """Simple helper data class that's a little nicer to use than a 2-tuple."""
+
     def __init__(self, host_mem, device_mem):
         self.host = host_mem
         self.device = device_mem
@@ -56,26 +66,26 @@ def allocate_buffers(engine):
         bindings_dims = engine.get_binding_shape(binding)
         if len(bindings_dims) == 4:
             # explicit batch case (TensorRT 7+)
-            size = trt.volumn(bindings_dims)
+            size = trt.volume(bindings_dims)
         elif len(bindings_dims) == 3:
             # implicit batch case (TensorRT 6 or older)
-            size = trt.volumn(bindings_dims) * engine.max_batch_size
+            size = trt.volume(bindings_dims) * engine.max_batch_size
         else:
             raise ValueError('bad dims of binding %s: %s' % (binding, str(bindings_dims)))
         dtype = trt.nptype(engine.get_binding_dtype(binding))
         # Allocate host and device buffers
-        host_men = cuda.pagelocked_empty(size, dtype)
-        device_mem = cuda.men_alloc(host_men)
+        host_mem = cuda.pagelocked_empty(size, dtype)
+        device_mem = cuda.mem_alloc(host_mem.nbytes)
         # Append the device buffer to device bindings
         bindings.append(int(device_mem))
         # Append the appropriate list.
         if engine.binding_is_input(binding):
-            inputs.append(HostDeviceMem(host_men, device_mem))
+            inputs.append(HostDeviceMem(host_mem, device_mem))
         else:
             # each grid has 3 anchors, each anchor generates a detection
             # output of 7 float32 values
-            assert size % 7 ==0
-            outputs.append(HostDeviceMem(host_men, device_mem))
+            assert size % 7 == 0
+            outputs.append(HostDeviceMem(host_mem, device_mem))
             output_idx += 1
 
     return inputs, outputs, bindings, stream
@@ -159,9 +169,9 @@ class TrtYOLO(object):
         del self.stream
 
     def _load_engine(self):
-        trt_model = 'weights/%s.trt' % self.model_name
+        trt_model = '/home/xia/Documents/1_code/16_target_detection/target_detection/2_yolov4/yolov4_pycharm/weights/%s.trt' % self.model_name
         with open(trt_model, 'rb') as f, \
-            trt.Runtime(self.trt_logger) as runtime:
+                trt.Runtime(self.trt_logger) as runtime:
             return runtime.deserialize_cuda_engine(f.read())
 
     def predict(self):
@@ -173,15 +183,18 @@ class TrtYOLO(object):
             outputs=self.outputs,
             stream=self.stream
         )
+        print(np.array(trt_outputs[0]).shape)
+        print(np.array(trt_outputs[1]).shape)
+        print(np.array(trt_outputs[2]).shape)
+        print(np.array(trt_outputs[0].reshape((-1,7)))[7][6])
         image_shape = Input(shape=(2,), dtype='int64', name='image_shape')
-        out_boxes, out_scores, out_classes = Lambda(yolo4_postprocess, name='yolo4_postprocess',
-                                                    arguments={
-                                                        'anchors': self.anchors,
-                                                        'num_classes': self.num_classes,
-                                                        'score_threshold': self.score,
-                                                        'iou_threshold': self.iou,
-                                                        'elim_grid_sense': self.elim_grid_sense
-                                                    })([trt_outputs, image_shape])
+        out_boxes, out_scores, out_classes = yolo4_postprocess(yolo_outputs=trt_outputs,
+                                                               image_shape=image_shape,
+                                                               anchors=self.anchors,
+                                                               num_classes=self.num_classes,
+                                                               score_threshold=self.score,
+                                                               iou_threshold=self.iou,
+                                                               elim_grid_sense=self.elim_grid_sense)
         out_boxes = out_boxes[0]
         out_scores = out_scores[0]
         out_classes = out_classes[0]
