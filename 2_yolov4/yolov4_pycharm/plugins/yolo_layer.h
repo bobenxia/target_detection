@@ -62,6 +62,7 @@ namespace nvinfer1
             void terminate() override;
 
             // 返回这个插件 op 需要显存的实际数据大小，通过 tensorrt 的接口获取
+            // 这个函数将在 engine 启动中（initialize()之后）被调用
             virtual size_t getWorkspaceSize(int maxBatchSize) const override { return 0;}
 
             // 实际插件 op 的执行函数，我们自己实现的 cuda 操作就放在这个

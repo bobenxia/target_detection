@@ -52,6 +52,7 @@ namespace nvinfer1
         CHECK(cudaMemcpy(mAnchors, mAnchorsHost, mNumAnchors * 2 * sizeof(float), cudaMemcpyHostToDevice));
     }
 
+    // deserialize 阶段，构造函数
     YoloLayerPlugin::YoloLayerPlugin(const void* data, size_t length)
     {
         const char *d = reinterpret_cast<const char *>(data), *a = d;
@@ -73,6 +74,7 @@ namespace nvinfer1
         assert(d == a + length);
     }
 
+    // serialize 函数，和上面 deserialize 顺序需要对应
     void YoloLayerPlugin::serialize(void* buffer) const
     {
         char* d = static_cast<char*>(buffer), *a = d;
@@ -188,6 +190,8 @@ namespace nvinfer1
         return p;
     }
 
+    // 第二部分
+    // 实现 enqueue
     inline __device__ float sigmoidGPU(float x) { return 1.0f / (1.0f + __expf(-x)); }
 
     inline __device__ float scale_sigmoidGPU(float x, float s)
@@ -326,6 +330,10 @@ namespace nvinfer1
         return 0;
     }
 
+    // 第三部分
+    // IPluginCreator
+    // 自定义层的创建类，可以通过它获取插件的名称、版本信息、参数等
+    // 也提供网络创建阶段创建插件的方法，并在推理阶段反序列化它。
     YoloPluginCreator::YoloPluginCreator()
     {
         mPluginAttributes.clear();
@@ -349,6 +357,8 @@ namespace nvinfer1
         return &mFC;
     }
 
+    // 核心
+    // 创建 plugin，通过 `PluginFieldCollection` 去创建 plugin
     IPluginV2IOExt* YoloPluginCreator::createPlugin(const char* name, const PluginFieldCollection* fc)
     {
         assert(!strcmp(name, getPluginName()));
@@ -358,6 +368,7 @@ namespace nvinfer1
         int num_classes, input_multiplier, new_coords = 0;
         float scale_x_y = 1.0;
 
+        // 将 plugin 需要的权重和参数读取出来
         for (int i = 0; i < fc->nbFields; ++i)
         {
             const char* attrName = fields[i].name;
@@ -413,11 +424,13 @@ namespace nvinfer1
         assert(input_multiplier == 8 || input_multiplier == 16 || input_multiplier == 32);
         assert(scale_x_y >= 1.0);
 
+        // plugin object
         YoloLayerPlugin* obj = new YoloLayerPlugin(yolo_width, yolo_height, num_anchors, anchors, num_classes, yolo_width * input_multiplier, yolo_height * input_multiplier, scale_x_y, new_coords);
         obj->setPluginNamespace(mNamespace.c_str());
         return obj;
     }
 
+    // 核心
     IPluginV2IOExt* YoloPluginCreator::deserializePlugin(const char* name, const void* serialData, size_t serialLength)
     {
         YoloLayerPlugin* obj = new YoloLayerPlugin(serialData, serialLength);
