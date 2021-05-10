@@ -211,17 +211,27 @@ namespace nvinfer1
                                  int num_classes, int input_w, int input_h,
                                  float scale_x_y)
     {
+        // tensorRT 数据流维度是 NCHW，所以输入维度是 batch_size*255*yolo_width*yolo_height(以yolov4 80类举例的)
+        // 现在要让每个线程处理一个 anchor 框，因此需要的总线程数目为 batch_size*3*yolo_width*yolo_height
+        // 令 total_grids = yolo_width*yolo_height
         int idx = threadIdx.x + blockDim.x * blockIdx.x;
-        Detection* det = ((Detection*) output) + idx;
         int total_grids = yolo_width * yolo_height;
         if (idx >= batch_size * total_grids * num_anchors) return;
 
+        // info_len 为 85
+        // 现在对线程进行逻辑分组，将一张图上的且 anchor 种类一致的化为一组，则一组大小为 total_girds
+        // 使用 group_idx 表示当前组的序号；
+        // 使用 anchor_idx 表示使用的 anchor 序号；
+        // 由上面 idx 知道当前线程，需要利用当前线程推出当前需要处理数据的起始地址，input 是起始地址，
+        // group_idx * total_grids * info_len 是当前组前面所有组所占数据大小，
+        // (idx % total_grids) 求得的是当前组中的 grid 的位置，因为数据维度是 CHW（举例 85*13*13），所以最里面的就是 grid 的位置。
         int info_len = 5 + num_classes;
-        //int batch_idx = idx / (total_grids * num_anchors);
         int group_idx = idx / total_grids;
         int anchor_idx = group_idx % num_anchors;
-        const float* cur_input = input + group_idx * (info_len * total_grids) + (idx % total_grids);
+        const float* cur_input = input + group_idx * total_grids * info_len + (idx % total_grids);
 
+        // 每个线程都会处理一个 anchor 的所有类别预测，找出最大的类别预测以及对应的类别id
+        // sigmoid 进行归一化
         int class_id;
         float max_cls_logit = -CUDART_INF_F;  // minus infinity
         for (int i = 5; i < info_len; ++i) {
@@ -233,12 +243,10 @@ namespace nvinfer1
         }
         float max_cls_prob = sigmoidGPU(max_cls_logit);
         float box_prob = sigmoidGPU(*(cur_input + 4 * total_grids));
-        //if (max_cls_prob < IGNORE_THRESH || box_prob < IGNORE_THRESH)
-        //    return;
-
         int row = (idx % total_grids) / yolo_width;
         int col = (idx % total_grids) % yolo_width;
 
+        Detection* det = ((Detection*) output) + idx;
         det->bbox[0] = (col + scale_sigmoidGPU(*(cur_input + 0 * total_grids), scale_x_y)) / yolo_width;    // [0, 1]
         det->bbox[1] = (row + scale_sigmoidGPU(*(cur_input + 1 * total_grids), scale_x_y)) / yolo_height;   // [0, 1]
         det->bbox[2] = __expf(*(cur_input + 2 * total_grids)) * *(anchors + 2 * anchor_idx + 0) / input_w;  // [0, 1]
